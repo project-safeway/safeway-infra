@@ -4,6 +4,10 @@
 *.tfstate.backup
 *.tfvars
 *.tfvars.json
+*.auto.tfvars
+*.auto.tfvars.json
+*.tfplan
+tfplan*
 
 # Crash logs
 crash.log
@@ -14,3 +18,7 @@ override.tf
 override.tf.json
 *_override.tf
 *_override.tf.json
+
+# Generated SSH private keys
+*.pem
+safeway-ec2-key.pem

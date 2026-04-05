@@ -1,0 +1,35 @@
+#!/bin/bash
+set -euxo pipefail
+
+export DEBIAN_FRONTEND=noninteractive
+apt-get update -y
+apt-get install -y curl ca-certificates unzip
+
+if ! command -v aws >/dev/null 2>&1; then
+  tmp_dir=$(mktemp -d)
+  curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "$tmp_dir/awscliv2.zip"
+  unzip -q "$tmp_dir/awscliv2.zip" -d "$tmp_dir"
+  "$tmp_dir/aws/install" --update
+  rm -rf "$tmp_dir"
+fi
+
+curl -fsSL https://get.docker.com | sh
+
+usermod -aG docker ubuntu || true
+
+%{ if ecr_registry != "" }
+aws ecr get-login-password --region ${aws_region} | /usr/bin/docker login --username AWS --password-stdin ${ecr_registry}
+%{ endif }
+
+mkdir -p /opt/safeway/frontend
+cat > /opt/safeway/frontend/docker-compose.yml <<'EOF'
+services:
+  frontend:
+    image: ${frontend_image}
+    restart: unless-stopped
+    ports:
+      - "80:80"
+EOF
+
+cd /opt/safeway/frontend
+/usr/bin/docker compose up -d

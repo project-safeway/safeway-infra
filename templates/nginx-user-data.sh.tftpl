@@ -1,0 +1,80 @@
+#!/bin/bash
+set -euxo pipefail
+
+export DEBIAN_FRONTEND=noninteractive
+apt-get update -y
+apt-get install -y curl ca-certificates
+curl -fsSL https://get.docker.com | sh
+
+usermod -aG docker ubuntu || true
+
+mkdir -p /opt/safeway/nginx/certs
+mkdir -p /opt/safeway/nginx/templates
+
+cat > /opt/safeway/nginx/docker-compose.yml <<'EOF'
+services:
+  nginx:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./templates/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./certs:/etc/nginx/certs:ro
+EOF
+
+cat > /opt/safeway/nginx/templates/default.conf <<'EOF'
+upstream frontend_upstream {
+    least_conn;
+    server ${frontend_upstream_1};
+    server ${frontend_upstream_2};
+}
+
+upstream core_upstream {
+    least_conn;
+    server ${core_upstream_1};
+    server ${core_upstream_2};
+}
+
+upstream financial_upstream {
+    least_conn;
+    server ${financial_upstream_1};
+    server ${financial_upstream_2};
+}
+
+server {
+    listen 80;
+    server_name ${server_name};
+
+    location / {
+        proxy_pass http://frontend_upstream;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location /api/financeiro/ {
+        proxy_pass http://financial_upstream/;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location /api/ {
+        proxy_pass http://core_upstream/;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+EOF
+
+cd /opt/safeway/nginx
+/usr/bin/docker compose up -d

@@ -8,6 +8,10 @@ resource "aws_instance" "database" {
     var.security_group
   ]
 
+  user_data                   = var.user_data
+  user_data_replace_on_change = true
+  key_name = var.key_name
+
   tags = {
     Name = "safeway-database"
   }

@@ -8,6 +8,11 @@ resource "aws_instance" "nginx" {
     var.security_group
   ]
 
+  user_data                   = var.user_data
+  user_data_replace_on_change = true
+  iam_instance_profile        = var.iam_instance_profile
+  key_name                    = var.key_name
+
   associate_public_ip_address = true
 
   tags = {

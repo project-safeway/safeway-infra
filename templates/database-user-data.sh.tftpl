@@ -1,0 +1,40 @@
+#!/bin/bash
+set -euxo pipefail
+
+export DEBIAN_FRONTEND=noninteractive
+apt-get update -y
+apt-get install -y mysql-server
+
+if grep -q '^bind-address' /etc/mysql/mysql.conf.d/mysqld.cnf; then
+  sed -i 's/^bind-address.*/bind-address = 0.0.0.0/' /etc/mysql/mysql.conf.d/mysqld.cnf
+else
+  echo 'bind-address = 0.0.0.0' >> /etc/mysql/mysql.conf.d/mysqld.cnf
+fi
+
+systemctl enable mysql
+systemctl restart mysql
+
+mysql --protocol=socket -uroot <<SQL
+CREATE DATABASE IF NOT EXISTS ${core_db_name} CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE DATABASE IF NOT EXISTS ${financial_db_name} CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+SQL
+
+if [ "${core_db_user}" = "${financial_db_user}" ]; then
+  mysql --protocol=socket -uroot <<SQL
+CREATE USER IF NOT EXISTS '${core_db_user}'@'%' IDENTIFIED BY '${core_db_password}';
+ALTER USER '${core_db_user}'@'%' IDENTIFIED BY '${core_db_password}';
+GRANT ALL PRIVILEGES ON ${core_db_name}.* TO '${core_db_user}'@'%';
+GRANT ALL PRIVILEGES ON ${financial_db_name}.* TO '${core_db_user}'@'%';
+FLUSH PRIVILEGES;
+SQL
+else
+  mysql --protocol=socket -uroot <<SQL
+CREATE USER IF NOT EXISTS '${core_db_user}'@'%' IDENTIFIED BY '${core_db_password}';
+ALTER USER '${core_db_user}'@'%' IDENTIFIED BY '${core_db_password}';
+GRANT ALL PRIVILEGES ON ${core_db_name}.* TO '${core_db_user}'@'%';
+CREATE USER IF NOT EXISTS '${financial_db_user}'@'%' IDENTIFIED BY '${financial_db_password}';
+ALTER USER '${financial_db_user}'@'%' IDENTIFIED BY '${financial_db_password}';
+GRANT ALL PRIVILEGES ON ${financial_db_name}.* TO '${financial_db_user}'@'%';
+FLUSH PRIVILEGES;
+SQL
+fi

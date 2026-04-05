@@ -1,0 +1,36 @@
+server_name = "app.seudominio.com"
+ssh_key_pair_name        = "safeway-ec2-key"
+ssh_private_key_filename = "safeway-ec2-key.pem"
+
+create_ec2_ecr_iam_resources      = false
+existing_ec2_instance_profile_name = "LabInstanceProfile"
+
+frontend_ecr_repository_name  = "safeway-frontend"
+core_ecr_repository_name      = "safeway-core"
+financial_ecr_repository_name = "safeway-financial"
+ecr_image_tag_mutability      = "MUTABLE"
+ecr_scan_on_push              = true
+ecr_force_delete              = false
+
+frontend_image      = "<account>.dkr.ecr.us-east-1.amazonaws.com/safeway-frontend:latest"
+core_api_image      = "<account>.dkr.ecr.us-east-1.amazonaws.com/safeway-core:latest"
+financial_api_image = "<account>.dkr.ecr.us-east-1.amazonaws.com/safeway-financial:latest"
+
+core_db_user      = "safeway"
+core_db_password  = "change-me"
+core_db_name      = "safeway_core"
+
+financial_db_user     = "safeway"
+financial_db_password = "change-me"
+financial_db_name     = "safeway_financial"
+
+rabbitmq_user     = "safeway"
+rabbitmq_password = "change-me"
+rabbitmq_vhost    = "/"
+
+auth_service_client_id     = "safeway-core"
+auth_service_client_secret = "change-me"
+
+google_project_id              = ""
+google_maps_api_key            = ""
+google_application_credentials = "/run/secrets/gcp-credentials.json"
