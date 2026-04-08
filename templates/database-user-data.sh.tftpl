@@ -2,8 +2,36 @@
 set -euxo pipefail
 
 export DEBIAN_FRONTEND=noninteractive
-apt-get update -y
-apt-get install -y mysql-server
+cat > /etc/apt/apt.conf.d/99force-ipv4 <<'EOF'
+Acquire::ForceIPv4 "true";
+EOF
+
+# Avoid boot-time races with unattended upgrades and transient mirror/network hiccups.
+wait_for_apt_lock() {
+  while fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1 \
+    || fuser /var/lib/dpkg/lock >/dev/null 2>&1 \
+    || fuser /var/cache/apt/archives/lock >/dev/null 2>&1; do
+    sleep 3
+  done
+}
+
+retry_cmd() {
+  local retries="$1"
+  shift
+  local n=1
+  until "$@"; do
+    if [ "$n" -ge "$retries" ]; then
+      return 1
+    fi
+    n=$((n + 1))
+    sleep 5
+  done
+}
+
+wait_for_apt_lock
+retry_cmd 8 apt-get -o Acquire::Retries=5 update -y
+wait_for_apt_lock
+retry_cmd 8 apt-get install -y mysql-server
 
 if grep -q '^bind-address' /etc/mysql/mysql.conf.d/mysqld.cnf; then
   sed -i 's/^bind-address.*/bind-address = 0.0.0.0/' /etc/mysql/mysql.conf.d/mysqld.cnf

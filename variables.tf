@@ -166,3 +166,10 @@ variable "google_application_credentials" {
   type        = string
   default     = "/run/secrets/gcp-credentials.json"
 }
+
+variable "google_service_account_json_base64" {
+  description = "Base64-encoded Google service account JSON written to backend host at runtime"
+  type        = string
+  sensitive   = true
+  default     = ""
+}

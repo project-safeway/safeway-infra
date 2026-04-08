@@ -39,6 +39,20 @@ Editar terraform.tfvars com:
 - senhas reais (db, rabbitmq, auth service)
 - existing_ec2_instance_profile_name = "LabInstanceProfile"
 - imagens ECR (pode iniciar com latest)
+- credencial Google em base64 para o backend (google_service_account_json_base64)
+
+Exemplo para gerar base64 em uma linha:
+
+```bash
+base64 -w0 ../back-end/src/main/resources/<service-account>.json
+```
+
+Depois, em terraform.tfvars:
+
+```hcl
+google_application_credentials      = "/run/secrets/gcp-credentials.json"
+google_service_account_json_base64 = "<base64_em_linha_unica>"
+```
 
 ### 1.2 Criar apenas repositorios ECR
 
@@ -62,13 +76,18 @@ aws ecr get-login-password --region "$AWS_REGION" \
 ### 1.4 Build e push das 3 imagens
 
 ```bash
-TAG=v1
+TAG=1.0.1
 AWS_REGION=us-east-1
 AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 ECR_REGISTRY="$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com"
+export VITE_GOOGLE_MAPS_API_KEY=
 
 cd ../front-end
-docker build -t "$ECR_REGISTRY/safeway-frontend:$TAG" .
+docker build \
+	--build-arg VITE_API_BASE_URL=/api \
+	--build-arg VITE_API_FINANCEIRO_URL=/api/financeiro \
+	--build-arg VITE_GOOGLE_MAPS_API_KEY= \
+	-t "$ECR_REGISTRY/safeway-frontend:$TAG" .
 docker push "$ECR_REGISTRY/safeway-frontend:$TAG"
 
 cd ../back-end
@@ -80,14 +99,19 @@ docker build -t "$ECR_REGISTRY/safeway-financial:$TAG" .
 docker push "$ECR_REGISTRY/safeway-financial:$TAG"
 ```
 
+Importante sobre o mapa no frontend:
+- A variavel correta e `VITE_GOOGLE_MAPS_API_KEY` (nao use `VITE_GOOGLE_MAPS_API`).
+- Como o frontend e buildado com Vite, essa chave entra na imagem no momento do `docker build`.
+- Se a chave mudar, gere uma nova tag e refaca build/push.
+
 ### 1.5 Apontar terraform para as tags publicadas
 
 No terraform.tfvars:
 
 ```hcl
-frontend_image      = "<account>.dkr.ecr.us-east-1.amazonaws.com/safeway-frontend:v1"
-core_api_image      = "<account>.dkr.ecr.us-east-1.amazonaws.com/safeway-core:v1"
-financial_api_image = "<account>.dkr.ecr.us-east-1.amazonaws.com/safeway-financial:v1"
+frontend_image      = "<account>.dkr.ecr.us-east-1.amazonaws.com/safeway-frontend:1.0.0"
+core_api_image      = "<account>.dkr.ecr.us-east-1.amazonaws.com/safeway-core:1.0.0"
+financial_api_image = "<account>.dkr.ecr.us-east-1.amazonaws.com/safeway-financial:1.0.0"
 ```
 
 ### 1.6 Subir infraestrutura completa
@@ -192,3 +216,7 @@ terraform apply tfplan-up
 ```
 
 Nao precisa novo build/push se a tag ja existir no ECR.
+
+terraform apply \
+  -replace='module.frontend.aws_instance.frontend[0]' \
+  -replace='module.frontend.aws_instance.frontend[1]'

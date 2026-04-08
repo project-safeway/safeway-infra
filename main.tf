@@ -60,6 +60,7 @@ locals {
     google_project_id              = var.google_project_id
     google_maps_api_key            = var.google_maps_api_key
     google_application_credentials = var.google_application_credentials
+    google_service_account_json_base64 = var.google_service_account_json_base64
     ecr_registry                   = local.ec2_instance_profile_name != null ? "${data.aws_caller_identity.current.account_id}.dkr.ecr.${data.aws_region.current.name}.amazonaws.com" : ""
     aws_region                     = data.aws_region.current.name
   })

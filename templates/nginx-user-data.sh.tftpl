@@ -2,7 +2,10 @@
 set -euxo pipefail
 
 export DEBIAN_FRONTEND=noninteractive
-apt-get update -y
+cat > /etc/apt/apt.conf.d/99force-ipv4 <<'EOF'
+Acquire::ForceIPv4 "true";
+EOF
+apt-get -o Acquire::Retries=3 update -y
 apt-get install -y curl ca-certificates
 curl -fsSL https://get.docker.com | sh
 

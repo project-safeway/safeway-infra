@@ -2,7 +2,10 @@
 set -euxo pipefail
 
 export DEBIAN_FRONTEND=noninteractive
-apt-get update -y
+cat > /etc/apt/apt.conf.d/99force-ipv4 <<'EOF'
+Acquire::ForceIPv4 "true";
+EOF
+apt-get -o Acquire::Retries=3 update -y
 apt-get install -y curl ca-certificates unzip
 
 if ! command -v aws >/dev/null 2>&1; then
@@ -19,6 +22,14 @@ usermod -aG docker ubuntu || true
 
 %{ if ecr_registry != "" }
 aws ecr get-login-password --region ${aws_region} | /usr/bin/docker login --username AWS --password-stdin ${ecr_registry}
+%{ endif }
+
+install -d -m 700 "$(dirname "${google_application_credentials}")"
+%{ if google_service_account_json_base64 != "" }
+echo '${google_service_account_json_base64}' | base64 -d > "${google_application_credentials}"
+chmod 600 "${google_application_credentials}"
+%{ else }
+echo "WARN: google_service_account_json_base64 is empty; Google API calls may fail without credentials." >&2
 %{ endif }
 
 mkdir -p /opt/safeway/backend-stack
@@ -42,6 +53,8 @@ services:
         condition: service_started
     ports:
       - "8080:8080"
+    volumes:
+      - ${google_application_credentials}:${google_application_credentials}:ro
     environment:
       JAVA_TOOL_OPTIONS: -XX:InitialRAMPercentage=20 -XX:MaxRAMPercentage=65 -XX:+ExitOnOutOfMemoryError
       SPRING_DATASOURCE_URL: jdbc:mysql://${db_host}:3306/${core_db_name}
@@ -57,7 +70,7 @@ services:
       AUTH_SERVICE_BASE_URL: http://core-api:8080
       AUTH_SERVICE_CLIENT_ID: ${auth_service_client_id}
       AUTH_SERVICE_CLIENT_SECRET: ${auth_service_client_secret}
-      GOOGLE_PROJECTID: ${google_project_id}
+      GOOGLE_PROJECT_ID: ${google_project_id}
       GOOGLE_MAPS_API_KEY: ${google_maps_api_key}
       GOOGLE_APPLICATION_CREDENTIALS: ${google_application_credentials}
 
