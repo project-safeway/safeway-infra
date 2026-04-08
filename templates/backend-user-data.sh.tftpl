@@ -5,8 +5,33 @@ export DEBIAN_FRONTEND=noninteractive
 cat > /etc/apt/apt.conf.d/99force-ipv4 <<'EOF'
 Acquire::ForceIPv4 "true";
 EOF
-apt-get -o Acquire::Retries=3 update -y
-apt-get install -y curl ca-certificates unzip
+
+# Avoid boot-time races with unattended upgrades and transient mirror/network hiccups.
+wait_for_apt_lock() {
+  while fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1 \
+    || fuser /var/lib/dpkg/lock >/dev/null 2>&1 \
+    || fuser /var/cache/apt/archives/lock >/dev/null 2>&1; do
+    sleep 3
+  done
+}
+
+retry_cmd() {
+  local retries="$1"
+  shift
+  local n=1
+  until "$@"; do
+    if [ "$n" -ge "$retries" ]; then
+      return 1
+    fi
+    n=$((n + 1))
+    sleep 5
+  done
+}
+
+wait_for_apt_lock
+retry_cmd 8 apt-get -o Acquire::Retries=5 update -y
+wait_for_apt_lock
+retry_cmd 8 apt-get install -y curl ca-certificates unzip
 
 if ! command -v aws >/dev/null 2>&1; then
   tmp_dir=$(mktemp -d)
@@ -16,7 +41,7 @@ if ! command -v aws >/dev/null 2>&1; then
   rm -rf "$tmp_dir"
 fi
 
-curl -fsSL https://get.docker.com | sh
+retry_cmd 6 sh -c "curl -fsSL https://get.docker.com | sh"
 
 usermod -aG docker ubuntu || true
 
@@ -105,7 +130,7 @@ volumes:
 EOF
 
 cd /opt/safeway/backend-stack
-/usr/bin/docker compose up -d || true
+retry_cmd 5 /usr/bin/docker compose up -d
 
 sleep 45
 echo "=== backend compose ps ==="
