@@ -45,7 +45,8 @@ locals {
   backend_user_data = templatefile("${path.module}/templates/backend-user-data.sh.tftpl", {
     core_api_image                 = var.core_api_image
     financial_api_image            = var.financial_api_image
-    db_host                        = module.database.private_ip
+    db_host                        = module.database.private_ip      
+    rabbitmq_host                  = module.rabbitmq.private_ip    
     core_db_name                   = var.core_db_name
     core_db_user                   = var.core_db_user
     core_db_password               = var.core_db_password
@@ -140,6 +141,15 @@ module "backend" {
   user_data            = local.backend_user_data
   key_name             = aws_key_pair.ec2_ssh.key_name
   iam_instance_profile = local.ec2_instance_profile_name
+}
+
+# ─── RabbitMQ (Private, shared broker) ───────────────
+module "rabbitmq" {
+  source = "./modules/rabbitmq"
+
+  ami            = data.aws_ami.ubuntu.id
+  private_subnet  = module.network.private_subnet_backend
+  security_group  = module.security.rabbitmq_sg
 }
 
 # ─── Database (Private) ──────────────────────────────

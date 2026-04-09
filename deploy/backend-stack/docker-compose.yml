@@ -1,32 +1,14 @@
 services:
-  rabbitmq:
-    image: rabbitmq:3.13-management
-    restart: unless-stopped
-    environment:
-      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
-      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
-      RABBITMQ_DEFAULT_VHOST: ${RABBITMQ_VHOST}
-    volumes:
-      - rabbitmq_data:/var/lib/rabbitmq
-    healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "ping"]
-      interval: 20s
-      timeout: 10s
-      retries: 5
-
   core-api:
     image: ${CORE_API_IMAGE}
     restart: unless-stopped
-    depends_on:
-      rabbitmq:
-        condition: service_healthy
     ports:
       - "8080:8080"
     environment:
       SPRING_DATASOURCE_URL: ${CORE_DB_URL}
       SPRING_DATASOURCE_USERNAME: ${CORE_DB_USER}
       SPRING_DATASOURCE_PASSWORD: ${CORE_DB_PASSWORD}
-      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_HOST: ${RABBITMQ_HOST}
       SPRING_RABBITMQ_PORT: 5672
       SPRING_RABBITMQ_USERNAME: ${RABBITMQ_USER}
       SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
@@ -41,8 +23,6 @@ services:
     image: ${FINANCIAL_API_IMAGE}
     restart: unless-stopped
     depends_on:
-      rabbitmq:
-        condition: service_healthy
       core-api:
         condition: service_started
     ports:
@@ -51,7 +31,7 @@ services:
       DB_URL: ${FINANCIAL_DB_URL}
       DB_USER: ${FINANCIAL_DB_USER}
       DB_PASSWORD: ${FINANCIAL_DB_PASSWORD}
-      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_HOST: ${RABBITMQ_HOST}
       RABBITMQ_PORT: 5672
       RABBITMQ_USERNAME: ${RABBITMQ_USER}
       RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
@@ -61,6 +41,3 @@ services:
       AUTH_SERVICE_TOKEN_ENDPOINT: ${AUTH_SERVICE_TOKEN_ENDPOINT}
       AUTH_SERVICE_CLIENT_ID: ${AUTH_SERVICE_CLIENT_ID}
       AUTH_SERVICE_CLIENT_SECRET: ${AUTH_SERVICE_CLIENT_SECRET}
-
-volumes:
-  rabbitmq_data:

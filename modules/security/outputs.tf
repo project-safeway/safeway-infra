@@ -13,3 +13,7 @@ output "backend_sg" {
 output "db_sg" {
   value = aws_security_group.db_sg.id
 }
+
+output "rabbitmq_sg" {
+  value = aws_security_group.rabbitmq_sg.id
+}

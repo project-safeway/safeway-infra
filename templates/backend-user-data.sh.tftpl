@@ -60,22 +60,9 @@ echo "WARN: google_service_account_json_base64 is empty; Google API calls may fa
 mkdir -p /opt/safeway/backend-stack
 cat > /opt/safeway/backend-stack/docker-compose.yml <<'EOF'
 services:
-  rabbitmq:
-    image: rabbitmq:3.13-management
-    restart: unless-stopped
-    environment:
-      RABBITMQ_DEFAULT_USER: ${rabbitmq_user}
-      RABBITMQ_DEFAULT_PASS: ${rabbitmq_password}
-      RABBITMQ_DEFAULT_VHOST: ${rabbitmq_vhost}
-    volumes:
-      - rabbitmq_data:/var/lib/rabbitmq
-
   core-api:
     image: ${core_api_image}
     restart: unless-stopped
-    depends_on:
-      rabbitmq:
-        condition: service_started
     ports:
       - "8080:8080"
     volumes:
@@ -88,7 +75,7 @@ services:
       SPRING_DATASOURCE_PASSWORD: ${core_db_password}
       SPRING_JPA_DATABASE_PLATFORM: org.hibernate.dialect.MySQLDialect
       SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT: org.hibernate.dialect.MySQLDialect
-      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_HOST: ${rabbitmq_host}
       SPRING_RABBITMQ_PORT: 5672
       SPRING_RABBITMQ_USERNAME: ${rabbitmq_user}
       SPRING_RABBITMQ_PASSWORD: ${rabbitmq_password}
@@ -103,8 +90,6 @@ services:
     image: ${financial_api_image}
     restart: unless-stopped
     depends_on:
-      rabbitmq:
-        condition: service_started
       core-api:
         condition: service_started
     ports:
@@ -114,7 +99,7 @@ services:
       DB_URL: jdbc:mysql://${db_host}:3306/${financial_db_name}
       DB_USER: ${financial_db_user}
       DB_PASSWORD: ${financial_db_password}
-      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_HOST: ${rabbitmq_host}
       RABBITMQ_PORT: 5672
       RABBITMQ_USERNAME: ${rabbitmq_user}
       RABBITMQ_PASSWORD: ${rabbitmq_password}
@@ -124,9 +109,6 @@ services:
       AUTH_SERVICE_TOKEN_ENDPOINT: /auth/v2/token/service
       AUTH_SERVICE_CLIENT_ID: ${auth_service_client_id}
       AUTH_SERVICE_CLIENT_SECRET: ${auth_service_client_secret}
-
-volumes:
-  rabbitmq_data:
 EOF
 
 cd /opt/safeway/backend-stack
@@ -136,6 +118,6 @@ sleep 45
 echo "=== backend compose ps ==="
 /usr/bin/docker compose ps || true
 echo "=== backend compose logs ==="
-/usr/bin/docker compose logs --no-color --tail=200 rabbitmq core-api financial-api || true
+/usr/bin/docker compose logs --no-color --tail=200 core-api financial-api || true
 echo "=== listening ports ==="
 ss -ltnp || true
