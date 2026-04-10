@@ -147,10 +147,13 @@ module "backend" {
 module "rabbitmq" {
   source = "./modules/rabbitmq"
 
-  ami            = data.aws_ami.ubuntu.id
-  private_subnet  = module.network.private_subnet_backend
-  security_group  = module.security.rabbitmq_sg
+  ami               = data.aws_ami.ubuntu.id
+  private_subnet     = module.network.private_subnet_backend
+  security_group     = module.security.rabbitmq_sg
+  rabbitmq_user      = var.rabbitmq_user
+  rabbitmq_password  = var.rabbitmq_password
 }
+
 
 # ─── Database (Private) ──────────────────────────────
 module "database" {

@@ -25,8 +25,8 @@ resource "aws_instance" "rabbitmq" {
       --restart unless-stopped \
       -p 5672:5672 \
       -p 15672:15672 \
-      -e RABBITMQ_DEFAULT_USER=guest \
-      -e RABBITMQ_DEFAULT_PASS=guest \
+      -e RABBITMQ_DEFAULT_USER=${var.rabbitmq_user} \
+      -e RABBITMQ_DEFAULT_PASS=${var.rabbitmq_password} \
       rabbitmq:3.13-management
   EOF
 
