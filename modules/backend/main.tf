@@ -12,6 +12,7 @@ resource "aws_instance" "backend" {
 
   user_data                   = var.user_data
   user_data_replace_on_change = true
+  instance_initiated_shutdown_behavior = "stop"
   iam_instance_profile        = var.iam_instance_profile
   key_name                    = var.key_name
 
