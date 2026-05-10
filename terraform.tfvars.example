@@ -2,6 +2,14 @@ server_name = "app.seudominio.com"
 ssh_key_pair_name        = "safeway-ec2-key"
 ssh_private_key_filename = "safeway-ec2-key.pem"
 
+# Se a key pair já existir na conta (ex.: Academy), use false para evitar Duplicate.
+create_ec2_ssh_key_material = false
+
+# AWS Academy costuma bloquear OIDC; use false e credenciais no GitHub (ver DEPLOY.md).
+enable_github_actions_oidc = false
+# enable_github_actions_oidc = true
+# github_actions_repositories = ["org/repo-front", "org/repo-back", "org/repo-financial", "org/repo-infra"]
+
 create_ec2_ecr_iam_resources      = false
 existing_ec2_instance_profile_name = "LabInstanceProfile"
 

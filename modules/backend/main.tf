@@ -10,11 +10,11 @@ resource "aws_instance" "backend" {
     var.security_group
   ]
 
-  user_data                   = var.user_data
-  user_data_replace_on_change = true
+  user_data                            = var.user_data
+  user_data_replace_on_change          = true
   instance_initiated_shutdown_behavior = "stop"
-  iam_instance_profile        = var.iam_instance_profile
-  key_name                    = var.key_name
+  iam_instance_profile                 = var.iam_instance_profile
+  key_name                             = var.key_name
 
   tags = {
     Name = "${var.instance_name_prefix}-${count.index + 1}"

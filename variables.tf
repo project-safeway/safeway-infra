@@ -16,6 +16,12 @@ variable "ssh_private_key_filename" {
   default     = "safeway-ec2-key.pem"
 }
 
+variable "create_ec2_ssh_key_material" {
+  description = "If true, generate a new TLS key, import aws_key_pair, and write PEM locally. If false, use existing key pair name in AWS only (avoids Duplicate keypair in labs)."
+  type        = bool
+  default     = false
+}
+
 variable "create_ec2_ecr_iam_resources" {
   description = "Create IAM role/profile for EC2 to pull from private ECR. Disable in restricted labs."
   type        = bool
@@ -172,4 +178,28 @@ variable "google_service_account_json_base64" {
   type        = string
   sensitive   = true
   default     = ""
+}
+
+variable "enable_github_actions_oidc" {
+  description = "Create GitHub OIDC provider + IAM role for Actions. Disable in AWS Academy / accounts without iam:CreateOpenIDConnectProvider."
+  type        = bool
+  default     = false
+}
+
+variable "github_actions_oidc_role_name" {
+  description = "IAM role name assumed by GitHub Actions via OIDC"
+  type        = string
+  default     = "safeway-github-actions"
+}
+
+variable "github_actions_repositories" {
+  description = "List of GitHub repositories allowed to assume the OIDC role (format: owner/repo)"
+  type        = list(string)
+  default     = []
+}
+
+variable "github_actions_branches" {
+  description = "Branches allowed to assume the OIDC role (e.g. main/master)"
+  type        = list(string)
+  default     = ["main", "master"]
 }

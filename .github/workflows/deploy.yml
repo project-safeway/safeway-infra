@@ -1,0 +1,126 @@
+name: deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      frontend_version:
+        description: "Tag da imagem do frontend (ex: 1.2.3, sha-abc..., latest)"
+        required: true
+        default: "latest"
+      core_version:
+        description: "Tag da imagem do core API (ex: 1.2.3, sha-abc..., latest)"
+        required: true
+        default: "latest"
+      financial_version:
+        description: "Tag da imagem do financial API (ex: 1.2.3, sha-abc..., latest)"
+        required: true
+        default: "latest"
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: us-east-1
+  FRONTEND_REPO: safeway-frontend
+  CORE_REPO: safeway-core
+  FINANCIAL_REPO: safeway-financial
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure AWS credentials (OIDC)
+        if: ${{ vars.AWS_AUTH_METHOD == 'oidc' }}
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ env.AWS_REGION }}
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+
+      - name: Configure AWS credentials (access keys)
+        if: ${{ vars.AWS_AUTH_METHOD != 'oidc' }}
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ env.AWS_REGION }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+
+      - name: Resolve ECR registry
+        id: reg
+        run: |
+          set -euo pipefail
+          acct="$(aws sts get-caller-identity --query Account --output text)"
+          echo "account_id=$acct" >> "$GITHUB_OUTPUT"
+          echo "registry=${acct}.dkr.ecr.${AWS_REGION}.amazonaws.com" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy frontend (docker compose pull/up)
+        env:
+          REGISTRY: ${{ steps.reg.outputs.registry }}
+          TAG: ${{ inputs.frontend_version }}
+        run: |
+          set -euo pipefail
+          cmd=$(cat <<EOF
+          set -euo pipefail
+          REGISTRY="${REGISTRY}"
+          FRONTEND_REPO="${FRONTEND_REPO}"
+          TAG="${TAG}"
+          cd /opt/safeway/frontend
+          img="\${REGISTRY}/\${FRONTEND_REPO}:\${TAG}"
+          sed -i -E "s|^([[:space:]]*image:[[:space:]]*).*$|\\1${img}|" docker-compose.yml
+          docker compose pull
+          docker compose up -d
+          docker compose ps
+          EOF
+          )
+          aws ssm send-command \
+            --document-name "AWS-RunShellScript" \
+            --targets "Key=tag:Name,Values=safeway-frontend-1,safeway-frontend-2" \
+            --comment "Deploy Safeway frontend ${TAG}" \
+            --parameters commands="$cmd" \
+            --timeout-seconds 900
+
+      - name: Deploy backend stack (core + financial)
+        env:
+          REGISTRY: ${{ steps.reg.outputs.registry }}
+          CORE_TAG: ${{ inputs.core_version }}
+          FIN_TAG: ${{ inputs.financial_version }}
+        run: |
+          set -euo pipefail
+          cmd=$(cat <<EOF
+          set -euo pipefail
+          REGISTRY="${REGISTRY}"
+          CORE_REPO="${CORE_REPO}"
+          FINANCIAL_REPO="${FINANCIAL_REPO}"
+          CORE_TAG="${CORE_TAG}"
+          FIN_TAG="${FIN_TAG}"
+          cd /opt/safeway/backend-stack
+
+          core="\${REGISTRY}/\${CORE_REPO}:\${CORE_TAG}"
+          fin="\${REGISTRY}/\${FINANCIAL_REPO}:\${FIN_TAG}"
+
+          awk -v core="$core" -v fin="$fin" '
+            BEGIN { in_core=0; in_fin=0 }
+            /^[[:space:]]*core-api:/ { in_core=1; in_fin=0 }
+            /^[[:space:]]*financial-api:/ { in_fin=1; in_core=0 }
+            in_core && /^[[:space:]]*image:/ { sub(/image:.*/, "image: " core); in_core=0 }
+            in_fin  && /^[[:space:]]*image:/ { sub(/image:.*/, "image: " fin ); in_fin=0 }
+            { print }
+          ' docker-compose.yml > docker-compose.yml.tmp
+          mv docker-compose.yml.tmp docker-compose.yml
+
+          docker compose pull
+          docker compose up -d
+          docker compose ps
+          EOF
+          )
+          aws ssm send-command \
+            --document-name "AWS-RunShellScript" \
+            --targets "Key=tag:Name,Values=safeway-backend-1,safeway-backend-2" \
+            --comment "Deploy Safeway backend core=${CORE_TAG} financial=${FIN_TAG}" \
+            --parameters commands="$cmd" \
+            --timeout-seconds 900
