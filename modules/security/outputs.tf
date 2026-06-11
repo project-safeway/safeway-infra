@@ -17,3 +17,7 @@ output "db_sg" {
 output "rabbitmq_sg" {
   value = aws_security_group.rabbitmq_sg.id
 }
+
+output "redis_sg" {
+  value = aws_security_group.redis_sg.id
+}

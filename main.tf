@@ -51,6 +51,7 @@ locals {
     financial_api_image                = var.financial_api_image
     db_host                            = module.database.private_ip
     rabbitmq_host                      = module.rabbitmq.private_ip
+    redis_host                         = module.redis.private_ip
     core_db_name                       = var.core_db_name
     core_db_user                       = var.core_db_user
     core_db_password                   = var.core_db_password
@@ -158,6 +159,14 @@ module "rabbitmq" {
   rabbitmq_password = var.rabbitmq_password
 }
 
+# ─── Redis (Private, distributed cache) ──────────────
+module "redis" {
+  source = "./modules/redis"
+
+  ami            = data.aws_ami.ubuntu.id
+  private_subnet = module.network.private_subnet_backend
+  security_group = module.security.redis_sg
+}
 
 # ─── Database (Private) ──────────────────────────────
 module "database" {

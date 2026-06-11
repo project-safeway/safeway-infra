@@ -13,6 +13,11 @@ output "rabbitmq_private_ip" {
   value       = module.rabbitmq.private_ip
 }
 
+output "redis_private_ip" {
+  description = "Private IP of the Redis EC2 instance"
+  value       = module.redis.private_ip
+}
+
 output "github_actions_oidc_role_arn" {
   description = "IAM role ARN to be assumed by GitHub Actions (OIDC); null if enable_github_actions_oidc is false"
   value       = var.enable_github_actions_oidc ? aws_iam_role.github_actions[0].arn : null

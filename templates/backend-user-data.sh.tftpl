@@ -79,6 +79,9 @@ services:
       SPRING_RABBITMQ_PORT: 5672
       SPRING_RABBITMQ_USERNAME: ${rabbitmq_user}
       SPRING_RABBITMQ_PASSWORD: ${rabbitmq_password}
+      SPRING_REDIS_HOST: ${redis_host}
+      SPRING_REDIS_PORT: 6379
+      SPRING_CACHE_TYPE: redis
       AUTH_SERVICE_BASE_URL: http://core-api:8080
       AUTH_SERVICE_CLIENT_ID: ${auth_service_client_id}
       AUTH_SERVICE_CLIENT_SECRET: ${auth_service_client_secret}
@@ -104,6 +107,8 @@ services:
       RABBITMQ_USERNAME: ${rabbitmq_user}
       RABBITMQ_PASSWORD: ${rabbitmq_password}
       RABBITMQ_VHOST: ${rabbitmq_vhost}
+      REDIS_HOST: ${redis_host}
+      REDIS_PORT: 6379
       SAFEWAY_CORE_URL: http://core-api:8080
       AUTH_SERVICE_BASE_URL: http://core-api:8080
       AUTH_SERVICE_TOKEN_ENDPOINT: /auth/v2/token/service
